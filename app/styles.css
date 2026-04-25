@@ -165,6 +165,46 @@ textarea {
   box-shadow: var(--shadow);
 }
 
+.search-panel {
+  margin-top: 20px;
+}
+
+#search-input {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  outline: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#search-input:focus {
+  border-bottom-color: var(--ink);
+}
+
+#search-input::placeholder {
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+#search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+.card-stats {
+  margin: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+}
+
 .cards-panel {
   margin-top: 20px;
 }

@@ -24,6 +24,8 @@ const input = $("card-input");
 const sourceInput = $("source-input");
 const sourceSuggestions = $("source-suggestions");
 const saveButton = $("save-card-btn");
+const searchInput = $("search-input");
+const statsEl = $("card-stats");
 const cardList = $("card-list");
 const toastEl = $("toast");
 
@@ -90,8 +92,66 @@ function renderComposerState() {
   }
 }
 
+function countUniqueSources(cards) {
+  const seen = new Set();
+  for (const card of cards) {
+    if (card.type === "note" && card.source?.title) seen.add(card.source.title.toLowerCase());
+  }
+  return seen.size;
+}
+
+function renderStats(visible, all, filtering) {
+  const totalNotes = all.filter((c) => c.type === "note").length;
+  const totalDefs = all.filter((c) => c.type === "vocab").length;
+  const totalSources = countUniqueSources(all);
+
+  if (!filtering) {
+    const parts = [];
+    if (totalNotes > 0) parts.push(`${totalNotes} ${totalNotes === 1 ? "note" : "notes"}`);
+    if (totalSources > 0) parts.push(`${totalSources} ${totalSources === 1 ? "source" : "sources"}`);
+    if (totalDefs > 0) parts.push(`${totalDefs} ${totalDefs === 1 ? "definition" : "definitions"}`);
+    statsEl.textContent = parts.join(", ");
+    return;
+  }
+
+  const visNotes = visible.filter((c) => c.type === "note").length;
+  const visDefs = visible.filter((c) => c.type === "vocab").length;
+  const visSources = countUniqueSources(visible);
+
+  const parts = [];
+  if (totalNotes > 0) parts.push(`${visNotes}/${totalNotes} notes`);
+  if (totalSources > 0) parts.push(`${visSources}/${totalSources} sources`);
+  if (totalDefs > 0) parts.push(`${visDefs}/${totalDefs} definitions`);
+  statsEl.textContent = parts.join(", ");
+}
+
+function cardMatchesQuery(card, query) {
+  const q = query.toLowerCase();
+  const fields = card.type === "vocab"
+    ? [card.word, card.definition, card.partOfSpeech]
+    : [card.content, card.source?.title, card.source?.author, card.source?.subtitle];
+
+  if (fields.some((f) => f?.toLowerCase().includes(q))) return true;
+
+  const convo = cardConversations.get(card.id);
+  if (convo) {
+    for (const msg of convo.messages) {
+      if (msg.question.toLowerCase().includes(q)) return true;
+      if (msg.answer.toLowerCase().includes(q)) return true;
+    }
+  }
+  return false;
+}
+
 function renderCards() {
   cardList.innerHTML = "";
+
+  const query = searchInput.value.trim();
+  const visibleCards = query
+    ? state.cards.filter((card) => cardMatchesQuery(card, query))
+    : state.cards;
+
+  renderStats(visibleCards, state.cards, query.length > 0);
 
   if (state.cards.length === 0) {
     const empty = document.createElement("p");
@@ -101,7 +161,15 @@ function renderCards() {
     return;
   }
 
-  state.cards.forEach((card, index) => {
+  if (visibleCards.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No cards match your search.";
+    cardList.appendChild(empty);
+    return;
+  }
+
+  visibleCards.forEach((card, index) => {
     const article = document.createElement("article");
     article.className = "card";
     article.style.animationDelay = `${Math.min(index * 40, 160)}ms`;
@@ -463,6 +531,12 @@ function attachEvents() {
 
   sourceInput.addEventListener("input", () => {
     parsedSourceCache = null;
+  });
+
+  let searchTimer;
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(renderCards, 180);
   });
 }
 
