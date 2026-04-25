@@ -2,6 +2,7 @@ export function createCard(input = {}) {
   return hydrateCard(
     {
       id: input.id || createCardId(),
+      type: "note",
       content: input.content || "",
       source: input.source || null,
       createdAt: input.createdAt || new Date().toISOString()
@@ -10,13 +11,39 @@ export function createCard(input = {}) {
   );
 }
 
+export function createVocabCard({ word, partOfSpeech, phonetic, definition }) {
+  return {
+    id: createCardId(),
+    type: "vocab",
+    word: String(word || "").trim(),
+    partOfSpeech: String(partOfSpeech || "").trim(),
+    phonetic: String(phonetic || "").trim(),
+    definition: String(definition || "").trim(),
+    createdAt: new Date().toISOString()
+  };
+}
+
 export function hydrateCard(card, index = 0) {
   const raw = card || {};
   const fallbackId = `card-${index + 1}`;
   const createdAt = normalizeDate(raw.createdAt);
+  const id = String(raw.id || "").trim() || fallbackId;
+
+  if (raw.type === "vocab") {
+    return {
+      id,
+      type: "vocab",
+      word: String(raw.word || "").trim(),
+      partOfSpeech: String(raw.partOfSpeech || "").trim(),
+      phonetic: String(raw.phonetic || "").trim(),
+      definition: String(raw.definition || "").trim(),
+      createdAt
+    };
+  }
 
   return {
-    id: String(raw.id || "").trim() || fallbackId,
+    id,
+    type: "note",
     content: String(raw.content || "").trim(),
     source: hydrateSource(raw.source),
     createdAt
@@ -104,7 +131,7 @@ export function hydrateCards(cards) {
   const normalized = cards
     .filter((card) => card && typeof card === "object")
     .map((card, index) => hydrateCard(card, index))
-    .filter((card) => card.content);
+    .filter((card) => card.type === "vocab" ? card.word : card.content);
 
   return normalized.length > 0 ? sortCardsDescending(normalized) : [];
 }

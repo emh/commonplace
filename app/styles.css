@@ -338,6 +338,44 @@ textarea {
   color: var(--ink-light);
 }
 
+.card-vocab-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.card-vocab-word {
+  font-size: 26px;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.card-vocab-phonetic {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--ink-light);
+}
+
+.card-vocab-pos {
+  margin: 3px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.card-vocab-definition {
+  margin: 8px 0 0;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
 .card-conversation {
   margin-top: 18px;
   padding-top: 16px;

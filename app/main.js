@@ -1,5 +1,6 @@
 import {
   createCard,
+  createVocabCard,
   formatCardTimestamp,
   parseKindleHighlight,
   sortCardsDescending
@@ -110,27 +111,56 @@ function renderCards() {
 
     const stamp = document.createElement("span");
     stamp.textContent = formatCardTimestamp(card.createdAt);
-
     meta.append(stamp);
 
     const body = document.createElement("div");
     body.className = "card-body";
 
-    const text = document.createElement("p");
-    text.className = "card-text";
-    text.textContent = card.content;
+    if (card.type === "vocab") {
+      const head = document.createElement("div");
+      head.className = "card-vocab-head";
 
-    body.appendChild(text);
+      const wordEl = document.createElement("span");
+      wordEl.className = "card-vocab-word";
+      wordEl.textContent = card.word;
+      head.appendChild(wordEl);
 
-    const { title: srcTitle, page: srcPage } = card.source || {};
-    const sourceLabel = srcTitle
-      ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle)
-      : "";
-    if (sourceLabel) {
-      const sourceEl = document.createElement("p");
-      sourceEl.className = "card-source";
-      sourceEl.textContent = sourceLabel;
-      body.appendChild(sourceEl);
+      if (card.phonetic) {
+        const phonEl = document.createElement("span");
+        phonEl.className = "card-vocab-phonetic";
+        phonEl.textContent = card.phonetic;
+        head.appendChild(phonEl);
+      }
+
+      body.appendChild(head);
+
+      if (card.partOfSpeech) {
+        const posEl = document.createElement("p");
+        posEl.className = "card-vocab-pos";
+        posEl.textContent = card.partOfSpeech;
+        body.appendChild(posEl);
+      }
+
+      const defEl = document.createElement("p");
+      defEl.className = "card-vocab-definition";
+      defEl.textContent = card.definition;
+      body.appendChild(defEl);
+    } else {
+      const text = document.createElement("p");
+      text.className = "card-text";
+      text.textContent = card.content;
+      body.appendChild(text);
+
+      const { title: srcTitle, page: srcPage } = card.source || {};
+      const sourceLabel = srcTitle
+        ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle)
+        : "";
+      if (sourceLabel) {
+        const sourceEl = document.createElement("p");
+        sourceEl.className = "card-source";
+        sourceEl.textContent = sourceLabel;
+        body.appendChild(sourceEl);
+      }
     }
 
     article.append(meta, body);
@@ -255,12 +285,17 @@ async function askStudyPartner(card, question, history) {
   const { studyBaseUrl } = state.settings;
   if (!studyBaseUrl) throw new Error("Study worker is not configured");
 
+  const quote = card.type === "vocab"
+    ? `Definition of "${card.word}": ${card.definition}`
+    : card.content;
+  const source = card.type === "vocab" ? "" : buildSourceText(card.source);
+
   const response = await fetch(`${studyBaseUrl}/api/study`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      quote: card.content,
-      source: buildSourceText(card.source),
+      quote,
+      source,
       question,
       history
     })
@@ -314,10 +349,29 @@ function resolveSource(inputValue) {
     : { title: titlePart, subtitle: "", author: "", page };
 }
 
-function submitCard() {
+async function submitCard() {
   const content = input.value.trim();
+  if (!content) return;
 
-  if (!content) {
+  if (isSingleWord(content) && !sourceInput.value.trim()) {
+    saveButton.disabled = true;
+    input.disabled = true;
+    try {
+      const vocabData = await fetchDefinition(content);
+      const card = createVocabCard(vocabData);
+      state.cards = sortCardsDescending([card, ...state.cards]);
+      persist(true);
+      input.value = "";
+      autoResize();
+      render();
+      input.focus();
+      toast(`${vocabData.word} defined`);
+    } catch (err) {
+      toast(err.message || "word not found");
+      saveButton.disabled = false;
+      input.disabled = false;
+      renderComposerState();
+    }
     return;
   }
 
@@ -332,6 +386,27 @@ function submitCard() {
   render();
   input.focus();
   toast("card saved");
+}
+
+function isSingleWord(text) {
+  return /^[a-zA-Z][-a-zA-Z]*$/.test(text.trim()) && text.trim().length >= 2;
+}
+
+async function fetchDefinition(word) {
+  const response = await fetch(
+    `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
+  );
+  if (!response.ok) {
+    throw new Error(`"${word}" not found in dictionary`);
+  }
+  const entries = await response.json();
+  const entry = entries[0];
+  const phonetic = entry.phonetics?.find((p) => p.text)?.text || entry.phonetic || "";
+  const meaning = entry.meanings?.[0];
+  const partOfSpeech = meaning?.partOfSpeech || "";
+  const definition = meaning?.definitions?.[0]?.definition || "";
+  if (!definition) throw new Error(`No definition found for "${word}"`);
+  return { word: entry.word || word, partOfSpeech, phonetic, definition };
 }
 
 function toast(message) {
