@@ -1,0 +1,15 @@
+{
+  "name": "commonplace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:web",
+    "dev:web": "wds --root-dir app --watch --app-index index.html --hostname 127.0.0.1 --port 8033",
+    "dev:study": "wrangler dev --config workers/study/wrangler.toml",
+    "check": "node --check app/config.js && node --check app/model.js && node --check app/storage.js && node --check app/sync.js && node --check app/sw.js && node --check app/main.js && node --check workers/study/src/index.js && node -e \"JSON.parse(require('node:fs').readFileSync('app/manifest.webmanifest', 'utf8'))\""
+  },
+  "devDependencies": {
+    "@web/dev-server": "^0.4.6",
+    "wrangler": "^3"
+  }
+}
