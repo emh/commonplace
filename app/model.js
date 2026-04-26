@@ -5,6 +5,7 @@ export function createCard(input = {}) {
       type: "note",
       content: input.content || "",
       source: input.source || null,
+      notes: [],
       createdAt: input.createdAt || new Date().toISOString()
     },
     0
@@ -19,6 +20,15 @@ export function createVocabCard({ word, partOfSpeech, phonetic, definition }) {
     partOfSpeech: String(partOfSpeech || "").trim(),
     phonetic: String(phonetic || "").trim(),
     definition: String(definition || "").trim(),
+    notes: [],
+    createdAt: new Date().toISOString()
+  };
+}
+
+export function createCardNote({ content }) {
+  return {
+    id: createCardId(),
+    content: String(content || "").trim(),
     createdAt: new Date().toISOString()
   };
 }
@@ -37,6 +47,7 @@ export function hydrateCard(card, index = 0) {
       partOfSpeech: String(raw.partOfSpeech || "").trim(),
       phonetic: String(raw.phonetic || "").trim(),
       definition: String(raw.definition || "").trim(),
+      notes: hydrateNotes(raw.notes),
       createdAt
     };
   }
@@ -46,6 +57,7 @@ export function hydrateCard(card, index = 0) {
     type: "note",
     content: String(raw.content || "").trim(),
     source: hydrateSource(raw.source),
+    notes: hydrateNotes(raw.notes),
     createdAt
   };
 }
@@ -179,6 +191,18 @@ export function formatRelativeTime(dateValue) {
 
 export function formatCardCount(count) {
   return `${count} ${count === 1 ? "card" : "cards"}`;
+}
+
+function hydrateNotes(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((n) => n && typeof n === "object")
+    .map((n) => ({
+      id: String(n.id || "").trim() || createCardId(),
+      content: String(n.content || "").trim(),
+      createdAt: normalizeDate(n.createdAt)
+    }))
+    .filter((n) => n.content);
 }
 
 function hydrateSource(value) {

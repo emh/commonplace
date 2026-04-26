@@ -1,10 +1,16 @@
 import {
   createCard,
+  createCardNote,
   createVocabCard,
   formatCardTimestamp,
   parseKindleHighlight,
   sortCardsDescending
 } from "./model.js";
+
+const ICON_PENCIL = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>`;
+const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+const ICON_PLUS = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`;
+const ICON_QUESTION = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`;
 import { hydrateSnapshot, loadAppState, loadSettings, saveAppState } from "./storage.js";
 import { CommonplaceSync, nextClock, observeClock } from "./sync.js";
 
@@ -32,6 +38,7 @@ const toastEl = $("toast");
 let toastTimer;
 let parsedSourceCache = null;
 let expandedArticle = null;
+let pendingExpandCardId = null;
 const cardConversations = new Map();
 
 const syncClient = new CommonplaceSync({
@@ -133,6 +140,12 @@ function cardMatchesQuery(card, query) {
 
   if (fields.some((f) => f?.toLowerCase().includes(q))) return true;
 
+  if (card.notes) {
+    for (const note of card.notes) {
+      if (note.content.toLowerCase().includes(q)) return true;
+    }
+  }
+
   const convo = cardConversations.get(card.id);
   if (convo) {
     for (const msg of convo.messages) {
@@ -231,13 +244,20 @@ function renderCards() {
     article.append(meta, body);
 
     article.addEventListener("click", (event) => {
-      if (event.target.closest(".card-conversation")) return;
+      if (event.target.closest(".card-panel")) return;
+      if (event.target.closest(".card-edit-form")) return;
       if (window.getSelection()?.toString()) return;
       toggleCard(article, card);
     });
 
+    if (card.id === pendingExpandCardId) {
+      expandCard(article, card);
+    }
+
     cardList.appendChild(article);
   });
+
+  pendingExpandCardId = null;
 }
 
 function toggleCard(article, card) {
@@ -253,21 +273,233 @@ function expandCard(article, card) {
   expandedArticle = article;
   article.classList.add("expanded");
 
-  const conversation = document.createElement("div");
-  conversation.className = "card-conversation";
+  const panel = document.createElement("div");
+  panel.className = "card-panel";
+
+  const inline = document.createElement("div");
+  inline.className = "card-inline";
+
+  panel.appendChild(buildActionBar(article, card, inline));
+  panel.appendChild(inline);
+
+  const notesEl = document.createElement("div");
+  notesEl.className = "card-notes";
+  renderCardNotes(notesEl, card);
+  panel.appendChild(notesEl);
 
   const thread = document.createElement("div");
   thread.className = "conversation-thread";
-
   const prior = cardConversations.get(card.id);
-  if (prior) {
+  if (prior?.messages.length) {
     for (const msg of prior.messages) {
       appendThreadMessage(thread, msg.question, msg.answer, false);
     }
   }
+  panel.appendChild(thread);
 
-  conversation.appendChild(thread);
+  article.appendChild(panel);
+}
 
+function collapseCard(article) {
+  article.classList.remove("expanded");
+  article.querySelector(".card-panel")?.remove();
+  article.querySelector(".card-edit-form")?.remove();
+  if (expandedArticle === article) expandedArticle = null;
+}
+
+function buildActionBar(article, card, inline) {
+  const actions = document.createElement("div");
+  actions.className = "card-actions";
+
+  function clearInline() {
+    inline.innerHTML = "";
+    actions.querySelectorAll(".card-action-btn").forEach((b) => b.classList.remove("active"));
+  }
+
+  function togglePanel(btn, buildFn) {
+    if (btn.classList.contains("active")) { clearInline(); return; }
+    clearInline();
+    btn.classList.add("active");
+    buildFn(inline, clearInline);
+    inline.querySelector("textarea, input")?.focus();
+  }
+
+  if (card.type !== "vocab") {
+    const editBtn = makeActionBtn(ICON_PENCIL, "Edit");
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      clearInline();
+      activateEdit(article, card);
+    });
+    actions.appendChild(editBtn);
+  }
+
+  const deleteBtn = makeActionBtn(ICON_TRASH, "Delete");
+  deleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    togglePanel(deleteBtn, (container, close) => buildDeleteConfirm(container, card, close));
+  });
+  actions.appendChild(deleteBtn);
+
+  const noteBtn = makeActionBtn(ICON_PLUS, "Add note");
+  noteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const notesEl = article.querySelector(".card-notes");
+    togglePanel(noteBtn, (container, close) => buildAddNoteForm(container, card, notesEl, close));
+  });
+  actions.appendChild(noteBtn);
+
+  const askBtn = makeActionBtn(ICON_QUESTION, "Ask question");
+  askBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const thread = article.querySelector(".conversation-thread");
+    togglePanel(askBtn, (container, close) => buildQuestionInput(container, card, thread, close));
+  });
+  actions.appendChild(askBtn);
+
+  return actions;
+}
+
+function makeActionBtn(iconHtml, label) {
+  const btn = document.createElement("button");
+  btn.className = "card-action-btn";
+  btn.title = label;
+  btn.innerHTML = iconHtml;
+  return btn;
+}
+
+function activateEdit(article, card) {
+  const body = article.querySelector(".card-body");
+  const panel = article.querySelector(".card-panel");
+  body.style.display = "none";
+  panel.style.display = "none";
+
+  const form = document.createElement("div");
+  form.className = "card-edit-form";
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "card-edit-textarea";
+  textarea.value = card.content;
+  textarea.rows = 1;
+  textarea.spellcheck = true;
+  const resizeEdit = () => { textarea.style.height = "auto"; textarea.style.height = `${textarea.scrollHeight}px`; };
+  textarea.addEventListener("input", resizeEdit);
+
+  const srcInput = document.createElement("input");
+  srcInput.type = "text";
+  srcInput.className = "card-edit-source";
+  srcInput.placeholder = "source (optional)";
+  const { title, page } = card.source || {};
+  srcInput.value = title ? (page ? `${title}, p. ${page}` : title) : "";
+
+  const footer = document.createElement("div");
+  footer.className = "card-edit-footer";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "cancel";
+  cancelBtn.className = "btn-link";
+  cancelBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    form.remove();
+    body.style.display = "";
+    panel.style.display = "";
+  });
+
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "save";
+  saveBtn.className = "btn-link btn-link-primary";
+  const doSave = (e) => {
+    e.stopPropagation();
+    const newContent = textarea.value.trim();
+    if (!newContent) return;
+    const newSource = resolveSource(srcInput.value);
+    const idx = state.cards.findIndex((c) => c.id === card.id);
+    if (idx !== -1) state.cards[idx] = { ...state.cards[idx], content: newContent, source: newSource };
+    pendingExpandCardId = card.id;
+    persist(true);
+    render();
+  };
+  saveBtn.addEventListener("click", doSave);
+  textarea.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") doSave(e); });
+
+  footer.append(cancelBtn, saveBtn);
+  form.append(textarea, srcInput, footer);
+  article.insertBefore(form, panel);
+  requestAnimationFrame(() => { resizeEdit(); textarea.focus(); textarea.setSelectionRange(textarea.value.length, textarea.value.length); });
+}
+
+function buildDeleteConfirm(container, card, close) {
+  const el = document.createElement("div");
+  el.className = "card-confirm";
+
+  const label = document.createElement("span");
+  label.className = "card-confirm-label";
+  label.textContent = "delete this card?";
+
+  const yesBtn = document.createElement("button");
+  yesBtn.textContent = "yes";
+  yesBtn.className = "btn-link btn-link-danger";
+  yesBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    state.cards = state.cards.filter((c) => c.id !== card.id);
+    persist(true);
+    render();
+  });
+
+  const noBtn = document.createElement("button");
+  noBtn.textContent = "no";
+  noBtn.className = "btn-link";
+  noBtn.addEventListener("click", (e) => { e.stopPropagation(); close(); });
+
+  el.append(label, yesBtn, noBtn);
+  container.appendChild(el);
+}
+
+function buildAddNoteForm(container, card, notesEl, close) {
+  const el = document.createElement("div");
+  el.className = "card-add-note";
+
+  const textarea = document.createElement("textarea");
+  textarea.className = "card-add-note-textarea";
+  textarea.placeholder = "add a note...";
+  textarea.rows = 2;
+  const resizeNote = () => { textarea.style.height = "auto"; textarea.style.height = `${textarea.scrollHeight}px`; };
+  textarea.addEventListener("input", resizeNote);
+
+  const footer = document.createElement("div");
+  footer.className = "card-add-note-footer";
+
+  const cancelBtn = document.createElement("button");
+  cancelBtn.textContent = "cancel";
+  cancelBtn.className = "btn-link";
+  cancelBtn.addEventListener("click", (e) => { e.stopPropagation(); close(); });
+
+  const okBtn = document.createElement("button");
+  okBtn.textContent = "ok";
+  okBtn.className = "btn-link btn-link-primary";
+  const doSave = (e) => {
+    e.stopPropagation();
+    const content = textarea.value.trim();
+    if (!content) return;
+    const note = createCardNote({ content });
+    const idx = state.cards.findIndex((c) => c.id === card.id);
+    if (idx !== -1) {
+      state.cards[idx].notes = [...(state.cards[idx].notes || []), note];
+      card.notes = state.cards[idx].notes;
+    }
+    persist(true);
+    renderCardNotes(notesEl, card);
+    close();
+  };
+  okBtn.addEventListener("click", doSave);
+  textarea.addEventListener("keydown", (e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") doSave(e); });
+
+  footer.append(cancelBtn, okBtn);
+  el.append(textarea, footer);
+  container.appendChild(el);
+}
+
+function buildQuestionInput(container, card, thread, close) {
   const inputRow = document.createElement("div");
   inputRow.className = "conversation-input-row";
 
@@ -278,10 +510,7 @@ function expandCard(article, card) {
   convoInput.autocomplete = "off";
 
   convoInput.addEventListener("keydown", async (event) => {
-    if (event.key === "Escape") {
-      collapseCard(article);
-      return;
-    }
+    if (event.key === "Escape") { close(); return; }
     if (event.key !== "Enter") return;
 
     const question = convoInput.value.trim();
@@ -298,7 +527,6 @@ function expandCard(article, card) {
       const answer = await askStudyPartner(card, question, history);
       qEl.nextElementSibling.textContent = answer;
       qEl.nextElementSibling.classList.remove("loading");
-
       if (!cardConversations.has(card.id)) cardConversations.set(card.id, { messages: [] });
       cardConversations.get(card.id).messages.push({ question, answer });
     } catch (err) {
@@ -312,16 +540,21 @@ function expandCard(article, card) {
   });
 
   inputRow.appendChild(convoInput);
-  conversation.appendChild(inputRow);
-  article.appendChild(conversation);
-
-  requestAnimationFrame(() => convoInput.focus());
+  container.appendChild(inputRow);
 }
 
-function collapseCard(article) {
-  article.classList.remove("expanded");
-  article.querySelector(".card-conversation")?.remove();
-  if (expandedArticle === article) expandedArticle = null;
+function renderCardNotes(container, card) {
+  container.innerHTML = "";
+  if (!card.notes?.length) return;
+  for (const note of card.notes) {
+    const el = document.createElement("div");
+    el.className = "card-note";
+    const text = document.createElement("p");
+    text.className = "card-note-text";
+    text.textContent = note.content;
+    el.appendChild(text);
+    container.appendChild(el);
+  }
 }
 
 function appendThreadMessage(thread, question, answer, loading) {

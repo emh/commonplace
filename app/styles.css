@@ -433,18 +433,199 @@ textarea {
   color: var(--ink);
 }
 
-.card-conversation {
+.card-panel {
   margin-top: 18px;
-  padding-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid var(--rule);
   cursor: default;
+}
+
+.card-actions {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.card-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  color: var(--ink-faint);
+  transition: color 120ms var(--ease), background 120ms var(--ease);
+}
+
+.card-action-btn:hover {
+  color: var(--ink-light);
+  background: rgba(40, 24, 10, 0.05);
+}
+
+.card-action-btn.active {
+  color: var(--ink);
+  background: rgba(40, 24, 10, 0.07);
+}
+
+.card-inline:not(:empty) {
+  margin-top: 12px;
+}
+
+.card-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-confirm-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
+
+.btn-link {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  transition: color 120ms var(--ease);
+}
+
+.btn-link:hover {
+  color: var(--ink);
+}
+
+.btn-link-primary {
+  color: var(--red);
+}
+
+.btn-link-primary:hover {
+  color: var(--red-light);
+}
+
+.btn-link-danger {
+  color: var(--red);
+}
+
+.btn-link-danger:hover {
+  color: var(--red-light);
+}
+
+.card-add-note-textarea {
+  width: 100%;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  outline: none;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-style: italic;
+  color: var(--ink);
+  resize: none;
+  overflow: hidden;
+}
+
+.card-add-note-textarea:focus {
+  border-bottom-color: var(--ink);
+}
+
+.card-add-note-textarea::placeholder {
+  color: var(--ink-faint);
+}
+
+.card-add-note-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.card-edit-form {
+  margin-top: 10px;
+}
+
+.card-edit-textarea {
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  outline: none;
+  background: transparent;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink);
+  resize: none;
+  overflow: hidden;
+}
+
+.card-edit-textarea:focus {
+  border-bottom-color: var(--ink);
+}
+
+.card-edit-source {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  outline: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+
+.card-edit-source:focus {
+  border-bottom-color: var(--ink);
+}
+
+.card-edit-source::placeholder {
+  color: var(--ink-faint);
+}
+
+.card-edit-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.card-notes:not(:empty) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.card-note-text {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink-mid);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .conversation-thread {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 14px;
+}
+
+.conversation-thread:not(:empty) {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
 }
 
 .conversation-question {
@@ -484,7 +665,7 @@ textarea {
 }
 
 .conversation-input-row {
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .conversation-input {
