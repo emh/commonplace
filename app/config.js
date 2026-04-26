@@ -8,6 +8,6 @@ const COMMONPLACE_IS_LOCAL = COMMONPLACE_HOST === "localhost" ||
   /^172\.(1[6-9]|2\d|3[0-1])\./.test(COMMONPLACE_HOST);
 
 globalThis.COMMONPLACE_CONFIG = globalThis.COMMONPLACE_CONFIG || {
-  syncBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://YOUR_COMMONPLACE_SYNC_WORKER.workers.dev",
+  syncBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-sync.emh.workers.dev",
   studyBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-study.emh.workers.dev/"
 };

@@ -12,7 +12,7 @@ const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="1
 const ICON_PLUS = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`;
 const ICON_QUESTION = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`;
 import { hydrateSnapshot, loadAppState, loadSettings, saveAppState } from "./storage.js";
-import { CommonplaceSync, nextClock, observeClock } from "./sync.js";
+import { CommonplaceSync, buildDeviceLink, createLinkRoom, nextClock, normalizeCode, observeClock } from "./sync.js";
 
 const loadedState = loadAppState();
 const state = {
@@ -26,6 +26,10 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 const form = $("card-form");
+const linkBtn = $("link-btn");
+const linkPanel = $("link-panel");
+const linkPanelInner = $("link-panel-inner");
+const syncDot = $("sync-dot");
 const input = $("card-input");
 const sourceInput = $("source-input");
 const sourceSuggestions = $("source-suggestions");
@@ -628,6 +632,112 @@ async function askStudyPartner(card, question, history) {
 }
 
 function renderSyncStatus() {
+  if (!syncDot) return;
+  const s = state.syncStatus;
+  syncDot.classList.toggle("synced", s === "synced");
+  syncDot.classList.toggle("syncing", s === "syncing");
+  syncDot.classList.toggle("offline", s === "offline");
+  const titles = { synced: "synced", syncing: "syncing...", offline: "offline", local: "local only", pending: "pending sync" };
+  syncDot.title = titles[s] || "local only";
+}
+
+let linkPanelOpen = false;
+
+function toggleLinkPanel() {
+  linkPanelOpen = !linkPanelOpen;
+  linkPanel.hidden = !linkPanelOpen;
+  if (linkPanelOpen) renderLinkPanel();
+}
+
+function renderLinkPanel() {
+  linkPanelInner.innerHTML = "";
+
+  if (!state.settings.syncBaseUrl) {
+    const msg = document.createElement("p");
+    msg.className = "link-panel-label";
+    msg.textContent = "sync not configured";
+    const close = makeLinkClose();
+    const footer = document.createElement("div");
+    footer.className = "link-panel-footer";
+    footer.append(msg, close);
+    linkPanelInner.appendChild(footer);
+    return;
+  }
+
+  if (!state.sync.code) {
+    const msg = document.createElement("span");
+    msg.className = "link-panel-label";
+    msg.textContent = "no sync link yet";
+
+    const createBtn = document.createElement("button");
+    createBtn.className = "btn-link btn-link-primary";
+    createBtn.textContent = "create link";
+    createBtn.addEventListener("click", async () => {
+      createBtn.disabled = true;
+      createBtn.textContent = "creating...";
+      try {
+        const code = await createLinkRoom(state.settings.syncBaseUrl);
+        if (!code) throw new Error("No code returned");
+        state.sync.code = code;
+        persist(false);
+        syncClient.restart(code);
+        renderLinkPanel();
+      } catch (err) {
+        createBtn.disabled = false;
+        createBtn.textContent = "create link";
+        toast(err.message || "could not create link");
+      }
+    });
+
+    const close = makeLinkClose();
+    const footer = document.createElement("div");
+    footer.className = "link-panel-footer";
+    footer.append(msg, createBtn, close);
+    linkPanelInner.appendChild(footer);
+    return;
+  }
+
+  const linkUrl = buildDeviceLink(location.href, state.sync.code);
+
+  const urlEl = document.createElement("span");
+  urlEl.className = "link-panel-url";
+  urlEl.textContent = linkUrl;
+
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "btn-link btn-link-primary";
+  copyBtn.textContent = "copy";
+  copyBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(linkUrl).then(() => {
+      copyBtn.textContent = "copied";
+      setTimeout(() => { copyBtn.textContent = "copy"; }, 1500);
+    });
+  });
+
+  const row = document.createElement("div");
+  row.className = "link-panel-row";
+  row.append(urlEl, copyBtn);
+
+  const close = makeLinkClose();
+  const footer = document.createElement("div");
+  footer.className = "link-panel-footer";
+
+  const codeLabel = document.createElement("span");
+  codeLabel.className = "link-panel-label";
+  codeLabel.textContent = state.sync.code;
+
+  footer.append(codeLabel, close);
+  linkPanelInner.append(row, footer);
+}
+
+function makeLinkClose() {
+  const btn = document.createElement("button");
+  btn.className = "btn-link";
+  btn.textContent = "close";
+  btn.addEventListener("click", () => {
+    linkPanelOpen = false;
+    linkPanel.hidden = true;
+  });
+  return btn;
 }
 
 function renderSourceSuggestions() {
@@ -786,6 +896,8 @@ function attachEvents() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(renderCards, 180);
   });
+
+  linkBtn?.addEventListener("click", toggleLinkPanel);
 }
 
 function handlePaste(event) {
@@ -806,6 +918,14 @@ function init() {
   attachEvents();
   autoResize();
   render();
+
+  const linkParam = normalizeCode(new URLSearchParams(location.search).get("link") || "");
+  if (linkParam && linkParam !== state.sync.code) {
+    state.sync.code = linkParam;
+    saveAppState({ cards: state.cards, deviceId: state.deviceId, clock: state.clock, sync: state.sync });
+    history.replaceState(null, "", location.pathname);
+  }
+
   syncClient.start(state.sync.code);
   registerServiceWorker();
 }

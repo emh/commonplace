@@ -29,7 +29,15 @@
       <main id="view-home" class="view view-home active">
         <header class="home-header">
           <h1>commonplace</h1>
+          <div class="header-actions">
+            <span class="sync-dot" id="sync-dot" title="local only"></span>
+            <button class="btn-link header-link-btn" id="link-btn" type="button">link</button>
+          </div>
         </header>
+
+        <div class="link-panel" id="link-panel" hidden>
+          <div class="link-panel-inner" id="link-panel-inner"></div>
+        </div>
 
         <section class="composer-panel">
           <form class="composer-form" id="card-form">
