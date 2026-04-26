@@ -7,5 +7,5 @@ workers_dev = true
 port = 8034
 
 [vars]
-ALLOWED_ORIGINS = "http://localhost:8033,http://127.0.0.1:8033"
+ALLOWED_ORIGINS = "http://localhost:8033,http://127.0.0.1:8033,https://emh.io"
 OPENAI_MODEL = "gpt-5.4-nano"

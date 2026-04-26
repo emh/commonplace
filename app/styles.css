@@ -369,6 +369,23 @@ textarea {
   word-break: break-word;
 }
 
+.card-quote {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--ink-faint);
+  font-size: 20px;
+  line-height: 1.5;
+  font-style: italic;
+  color: var(--ink-mid);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.card-quote + .card-text,
+.card-text + .card-quote {
+  margin-top: 10px;
+}
+
 .card-source {
   margin: 8px 0 0;
   font-family: var(--font-mono);
@@ -541,7 +558,8 @@ textarea {
     font-size: 19px;
   }
 
-  .card-text {
+  .card-text,
+  .card-quote {
     font-size: 18px;
   }
 }
@@ -586,7 +604,8 @@ textarea {
     padding: 14px 18px 18px;
   }
 
-  .card-text {
+  .card-text,
+  .card-quote {
     font-size: 17px;
   }
 }

@@ -214,10 +214,7 @@ function renderCards() {
       defEl.textContent = card.definition;
       body.appendChild(defEl);
     } else {
-      const text = document.createElement("p");
-      text.className = "card-text";
-      text.textContent = card.content;
-      body.appendChild(text);
+      renderCardContent(body, card.content);
 
       const { title: srcTitle, page: srcPage } = card.source || {};
       const sourceLabel = srcTitle
@@ -339,6 +336,24 @@ function appendThreadMessage(thread, question, answer, loading) {
   thread.appendChild(aEl);
 
   return qEl;
+}
+
+function renderCardContent(container, content) {
+  const lines = content.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const isQuote = lines[i].startsWith(">");
+    const blockLines = [];
+    while (i < lines.length && lines[i].startsWith(">") === isQuote) {
+      blockLines.push(isQuote ? lines[i].slice(1).trimStart() : lines[i]);
+      i++;
+    }
+    const el = document.createElement("p");
+    el.className = isQuote ? "card-quote" : "card-text";
+    el.textContent = blockLines.join("\n");
+    container.appendChild(el);
+  }
 }
 
 function buildSourceText(source) {
@@ -546,7 +561,7 @@ function handlePaste(event) {
   if (!parsed) return;
 
   event.preventDefault();
-  input.value = parsed.content;
+  input.value = parsed.content.split("\n").map((line) => line.trim() ? `> ${line}` : line).join("\n");
   const { title, page } = parsed.source;
   sourceInput.value = page ? `${title}, p. ${page}` : title;
   parsedSourceCache = parsed.source;
