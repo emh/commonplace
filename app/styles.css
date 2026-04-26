@@ -178,8 +178,50 @@ textarea {
 .link-panel-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.link-panel-close {
+  display: block;
+  margin-left: auto;
+}
+
+.link-panel-enter-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.link-panel-enter-code .link-panel-label {
+  flex: 1;
+}
+
+.link-panel-code-input {
+  width: 80px;
+  padding: 4px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink);
+  outline: none;
+}
+
+.link-panel-code-input:focus {
+  border-color: var(--ink-mid);
+}
+
+.link-panel-code-input::placeholder {
+  color: var(--ink-faint);
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .home-actions {

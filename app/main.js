@@ -666,11 +666,7 @@ function renderLinkPanel() {
     const msg = document.createElement("p");
     msg.className = "link-panel-label";
     msg.textContent = "sync not configured";
-    const close = makeLinkClose();
-    const footer = document.createElement("div");
-    footer.className = "link-panel-footer";
-    footer.append(msg, close);
-    linkPanelInner.appendChild(footer);
+    linkPanelInner.append(msg, makeLinkClose("link-panel-close"));
     return;
   }
 
@@ -699,11 +695,10 @@ function renderLinkPanel() {
       }
     });
 
-    const close = makeLinkClose();
     const footer = document.createElement("div");
     footer.className = "link-panel-footer";
-    footer.append(msg, createBtn, close);
-    linkPanelInner.appendChild(footer);
+    footer.append(msg, createBtn);
+    linkPanelInner.append(footer, buildEnterCodeForm(), makeLinkClose("link-panel-close"));
     return;
   }
 
@@ -727,21 +722,53 @@ function renderLinkPanel() {
   row.className = "link-panel-row";
   row.append(urlEl, copyBtn);
 
-  const close = makeLinkClose();
-  const footer = document.createElement("div");
-  footer.className = "link-panel-footer";
-
   const codeLabel = document.createElement("span");
   codeLabel.className = "link-panel-label";
   codeLabel.textContent = state.sync.code;
 
-  footer.append(codeLabel, close);
-  linkPanelInner.append(row, footer);
+  linkPanelInner.append(row, codeLabel, buildEnterCodeForm(), makeLinkClose("link-panel-close"));
 }
 
-function makeLinkClose() {
+function buildEnterCodeForm() {
+  const row = document.createElement("div");
+  row.className = "link-panel-enter-code";
+
+  const label = document.createElement("span");
+  label.className = "link-panel-label";
+  label.textContent = "enter code from another device";
+
+  const codeInput = document.createElement("input");
+  codeInput.type = "text";
+  codeInput.className = "link-panel-code-input";
+  codeInput.placeholder = "code";
+  codeInput.autocomplete = "off";
+  codeInput.autocapitalize = "characters";
+  codeInput.spellcheck = false;
+  codeInput.maxLength = 12;
+
+  const joinBtn = document.createElement("button");
+  joinBtn.className = "btn-link btn-link-primary";
+  joinBtn.textContent = "join";
+
+  const doJoin = () => {
+    const code = normalizeCode(codeInput.value);
+    if (!code) return;
+    state.sync.code = code;
+    persist(false);
+    syncClient.restart(code);
+    renderLinkPanel();
+  };
+
+  joinBtn.addEventListener("click", doJoin);
+  codeInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doJoin(); });
+
+  row.append(label, codeInput, joinBtn);
+  return row;
+}
+
+function makeLinkClose(extraClass) {
   const btn = document.createElement("button");
-  btn.className = "btn-link";
+  btn.className = extraClass ? `btn-link ${extraClass}` : "btn-link";
   btn.textContent = "close";
   btn.addEventListener("click", () => {
     linkPanelOpen = false;
