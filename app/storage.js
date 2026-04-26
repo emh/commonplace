@@ -60,7 +60,8 @@ export function saveAppState(appState) {
 export function loadSettings() {
   return {
     syncBaseUrl: getConfiguredSyncBaseUrl() || getDefaultSyncBaseUrl(),
-    studyBaseUrl: getConfiguredStudyBaseUrl() || getDefaultStudyBaseUrl()
+    studyBaseUrl: getConfiguredStudyBaseUrl() || getDefaultStudyBaseUrl(),
+    articleBaseUrl: getConfiguredArticleBaseUrl() || getDefaultArticleBaseUrl()
   };
 }
 
@@ -142,6 +143,24 @@ function getDefaultSyncBaseUrl() {
     return `${protocol || "http:"}//${host}:8798`;
   }
 
+  return "";
+}
+
+function getConfiguredArticleBaseUrl() {
+  const value = globalThis.COMMONPLACE_CONFIG?.articleBaseUrl;
+  if (typeof value !== "string") return "";
+  if (value.includes("YOUR_")) return "";
+  return value.trim().replace(/\/+$/, "");
+}
+
+function getDefaultArticleBaseUrl() {
+  const host = globalThis.location?.hostname || "";
+  const protocol = globalThis.location?.protocol || "";
+
+  if (protocol === "file:") return "";
+  if (host === "localhost") return "http://localhost:8799";
+  if (host === "127.0.0.1") return "http://127.0.0.1:8799";
+  if (isPrivateNetworkHost(host)) return `${protocol || "http:"}//${host}:8799`;
   return "";
 }
 

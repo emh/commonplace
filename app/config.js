@@ -9,5 +9,6 @@ const COMMONPLACE_IS_LOCAL = COMMONPLACE_HOST === "localhost" ||
 
 globalThis.COMMONPLACE_CONFIG = globalThis.COMMONPLACE_CONFIG || {
   syncBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-sync.emh.workers.dev",
-  studyBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-study.emh.workers.dev/"
+  studyBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-study.emh.workers.dev/",
+  articleBaseUrl: COMMONPLACE_IS_LOCAL ? "" : "https://commonplace-article.emh.workers.dev"
 };

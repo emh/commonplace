@@ -375,6 +375,11 @@ textarea {
   color: var(--ink-faint);
 }
 
+#source-input[data-loading] {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 .composer-footer {
   display: flex;
   justify-content: flex-end;
@@ -477,6 +482,15 @@ textarea {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ink-light);
+}
+
+.card-source a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card-source a:hover {
+  text-decoration: underline;
 }
 
 .card-vocab-head {

@@ -233,14 +233,24 @@ function renderCards() {
     } else {
       renderCardContent(body, card.content);
 
-      const { title: srcTitle, page: srcPage } = card.source || {};
+      const { title: srcTitle, page: srcPage, url: srcUrl } = card.source || {};
       const sourceLabel = srcTitle
         ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle)
         : "";
       if (sourceLabel) {
         const sourceEl = document.createElement("p");
         sourceEl.className = "card-source";
-        sourceEl.textContent = sourceLabel;
+        if (srcUrl) {
+          const link = document.createElement("a");
+          link.href = srcUrl;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = sourceLabel;
+          link.addEventListener("click", (e) => e.stopPropagation());
+          sourceEl.appendChild(link);
+        } else {
+          sourceEl.textContent = sourceLabel;
+        }
         body.appendChild(sourceEl);
       }
     }
@@ -772,7 +782,7 @@ function resolveSource(inputValue) {
 
   return existing
     ? { ...existing, page }
-    : { title: titlePart, subtitle: "", author: "", page };
+    : { title: titlePart, subtitle: "", author: "", url: "", page };
 }
 
 async function submitCard() {
@@ -877,6 +887,42 @@ async function registerServiceWorker() {
   }
 }
 
+function looksLikeUrl(text) {
+  return /^https?:\/\/./.test(text) || /^www\../.test(text);
+}
+
+async function fetchAndFillSource(url) {
+  sourceInput.disabled = true;
+  sourceInput.dataset.loading = "true";
+  try {
+    const info = await fetchArticleInfo(url);
+    if (sourceInput.value.trim() === url || looksLikeUrl(sourceInput.value.trim())) {
+      sourceInput.value = info.title;
+      parsedSourceCache = { title: info.title, subtitle: "", author: info.author, url: info.url, page: "" };
+    }
+  } catch {
+    // leave as-is
+  } finally {
+    sourceInput.disabled = false;
+    delete sourceInput.dataset.loading;
+    sourceInput.focus();
+  }
+}
+
+async function fetchArticleInfo(url) {
+  const { articleBaseUrl } = state.settings;
+  const response = await fetch(`${articleBaseUrl}/api/fetch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url })
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `Request failed: ${response.status}`);
+  }
+  return response.json();
+}
+
 function attachEvents() {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -887,8 +933,14 @@ function attachEvents() {
   input.addEventListener("keydown", handleKeydown);
   input.addEventListener("paste", handlePaste);
 
+  let urlFetchTimer;
   sourceInput.addEventListener("input", () => {
     parsedSourceCache = null;
+    clearTimeout(urlFetchTimer);
+    const val = sourceInput.value.trim();
+    if (looksLikeUrl(val) && state.settings.articleBaseUrl) {
+      urlFetchTimer = setTimeout(() => fetchAndFillSource(val), 400);
+    }
   });
 
   let searchTimer;

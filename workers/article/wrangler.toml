@@ -1,0 +1,10 @@
+name = "commonplace-article"
+main = "src/index.js"
+compatibility_date = "2026-04-01"
+workers_dev = true
+
+[dev]
+port = 8799
+
+[vars]
+ALLOWED_ORIGINS = "http://localhost:8033,http://127.0.0.1:8033,https://emh.io"

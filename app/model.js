@@ -206,14 +206,15 @@ function hydrateNotes(value) {
 }
 
 function hydrateSource(value) {
-  if (!value) return { title: "", subtitle: "", author: "", page: "" };
+  if (!value) return { title: "", subtitle: "", author: "", url: "", page: "" };
   if (typeof value === "string") {
-    return { title: value.trim(), subtitle: "", author: "", page: "" };
+    return { title: value.trim(), subtitle: "", author: "", url: "", page: "" };
   }
   return {
     title: String(value.title || "").trim(),
     subtitle: String(value.subtitle || "").trim(),
     author: String(value.author || "").trim(),
+    url: String(value.url || "").trim(),
     page: String(value.page || "").trim()
   };
 }
