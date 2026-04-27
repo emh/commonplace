@@ -514,7 +514,7 @@ textarea {
 
 .card-quote + .card-text,
 .card-text + .card-quote {
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .card-source {

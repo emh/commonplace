@@ -596,9 +596,11 @@ function renderCardContent(container, content) {
       blockLines.push(isQuote ? lines[i].slice(1).trimStart() : lines[i]);
       i++;
     }
+    const text = blockLines.join("\n").trim();
+    if (!text) continue;
     const el = document.createElement("p");
     el.className = isQuote ? "card-quote" : "card-text";
-    el.textContent = blockLines.join("\n");
+    el.textContent = text;
     container.appendChild(el);
   }
 }
