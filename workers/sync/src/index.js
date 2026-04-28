@@ -425,6 +425,18 @@ function cardSharePreviewHtml({ card, appUrl, previewUrl }) {
 function normalizeShareCard(input) {
   if (!input || typeof input !== "object") return null;
 
+  const rawNotes = Array.isArray(input.notes) ? input.notes : [];
+  const notes = rawNotes
+    .filter(n => n && typeof n === "object")
+    .map(n => ({ id: String(n.id || "").trim(), content: String(n.content || "").trim(), createdAt: String(n.createdAt || "") }))
+    .filter(n => n.content);
+
+  const rawConversations = Array.isArray(input.conversations) ? input.conversations : [];
+  const conversations = rawConversations
+    .filter(c => c && typeof c === "object")
+    .map(c => ({ question: String(c.question || "").trim(), answer: String(c.answer || "").trim() }))
+    .filter(c => c.question && c.answer);
+
   if (input.type === "vocab") {
     const word = String(input.word || "").trim();
     if (!word) return null;
@@ -433,7 +445,9 @@ function normalizeShareCard(input) {
       word,
       partOfSpeech: String(input.partOfSpeech || "").trim(),
       phonetic: String(input.phonetic || "").trim(),
-      definition: String(input.definition || "").trim()
+      definition: String(input.definition || "").trim(),
+      notes,
+      conversations
     };
   }
 
@@ -449,7 +463,7 @@ function normalizeShareCard(input) {
     page: String(raw.page || "").trim()
   } : null;
 
-  return { type: "note", content, source };
+  return { type: "note", content, source, notes, conversations };
 }
 
 function escapeHtml(value) {

@@ -637,13 +637,16 @@ async function askStudyPartner(card, question, history) {
   const quote = card.type === "vocab"
     ? `Definition of "${card.word}": ${card.definition}`
     : card.content;
+  const notesContext = card.notes?.length
+    ? `\n\nNotes:\n${card.notes.map((n) => `- ${n.content}`).join("\n")}`
+    : "";
   const source = card.type === "vocab" ? "" : buildSourceText(card.source);
 
   const response = await fetch(`${studyBaseUrl}/api/study`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      quote,
+      quote: quote + notesContext,
       source,
       question,
       history
@@ -1017,10 +1020,11 @@ async function shareCard(card) {
   if (!syncBaseUrl) throw new Error("sync not configured");
 
   const appUrl = location.origin + location.pathname;
+  const conversations = cardConversations.get(card.id)?.messages || [];
   const response = await fetch(`${syncBaseUrl}/api/shares`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ card, appUrl })
+    body: JSON.stringify({ card: { ...card, conversations }, appUrl })
   });
 
   if (!response.ok) {
@@ -1055,23 +1059,28 @@ async function loadSharedCard(code) {
 }
 
 function showSharedCardView(card) {
-  const overlay = document.createElement("div");
-  overlay.className = "shared-card-overlay";
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
-
-  const modal = document.createElement("div");
-  modal.className = "shared-card-modal";
+  const screen = document.createElement("div");
+  screen.className = "shared-card-screen";
 
   const header = document.createElement("div");
-  header.className = "shared-card-header";
-  const label = document.createElement("span");
-  label.className = "shared-card-label";
-  label.textContent = "shared card";
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "btn-link";
-  closeBtn.textContent = "close";
-  closeBtn.addEventListener("click", () => overlay.remove());
-  header.append(label, closeBtn);
+  header.className = "shared-card-screen-header";
+
+  const backBtn = document.createElement("button");
+  backBtn.className = "shared-card-back btn-link";
+  backBtn.textContent = "← back";
+  backBtn.addEventListener("click", () => {
+    screen.remove();
+    document.body.classList.remove("shared-card-open");
+  });
+
+  const headerLabel = document.createElement("span");
+  headerLabel.className = "shared-card-label";
+  headerLabel.textContent = "shared card";
+
+  header.append(backBtn, headerLabel);
+
+  const content = document.createElement("div");
+  content.className = "shared-card-content";
 
   const body = document.createElement("div");
   body.className = "card-body";
@@ -1121,9 +1130,35 @@ function showSharedCardView(card) {
     }
   }
 
-  modal.append(header, body);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  content.appendChild(body);
+
+  if (card.notes?.length) {
+    const notesEl = document.createElement("div");
+    notesEl.className = "card-notes";
+    for (const note of card.notes) {
+      const el = document.createElement("div");
+      el.className = "card-note";
+      const text = document.createElement("p");
+      text.className = "card-note-text";
+      text.textContent = note.content;
+      el.appendChild(text);
+      notesEl.appendChild(el);
+    }
+    content.appendChild(notesEl);
+  }
+
+  if (card.conversations?.length) {
+    const thread = document.createElement("div");
+    thread.className = "conversation-thread";
+    for (const msg of card.conversations) {
+      appendThreadMessage(thread, msg.question, msg.answer, false);
+    }
+    content.appendChild(thread);
+  }
+
+  screen.append(header, content);
+  document.body.classList.add("shared-card-open");
+  document.body.appendChild(screen);
 }
 
 function init() {
