@@ -10,9 +10,18 @@ port = 8798
 name = "COMMONPLACE_ROOM"
 class_name = "CommonplaceRoom"
 
+[[durable_objects.bindings]]
+name = "COMMONPLACE_SHARE"
+class_name = "CommonplaceShare"
+
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = [ "CommonplaceRoom" ]
 
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = [ "CommonplaceShare" ]
+
 [vars]
 ALLOWED_ORIGINS = "http://localhost:8033,http://127.0.0.1:8033,https://emh.io"
+APP_BASE_URL = "https://emh.io"

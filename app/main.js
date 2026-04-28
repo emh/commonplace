@@ -11,6 +11,7 @@ const ICON_PENCIL = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="
 const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
 const ICON_PLUS = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`;
 const ICON_QUESTION = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`;
+const ICON_SHARE = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>`;
 import { hydrateSnapshot, loadAppState, loadSettings, saveAppState } from "./storage.js";
 import { CommonplaceSync, buildDeviceLink, createLinkRoom, nextClock, normalizeCode, observeClock } from "./sync.js";
 
@@ -370,6 +371,22 @@ function buildActionBar(article, card, inline) {
     togglePanel(askBtn, (container, close) => buildQuestionInput(container, card, thread, close));
   });
   actions.appendChild(askBtn);
+
+  if (state.settings.syncBaseUrl) {
+    const shareBtn = makeActionBtn(ICON_SHARE, "Share");
+    shareBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      shareBtn.disabled = true;
+      try {
+        await shareCard(card);
+      } catch (err) {
+        toast(err.message || "could not share");
+      } finally {
+        shareBtn.disabled = false;
+      }
+    });
+    actions.appendChild(shareBtn);
+  }
 
   return actions;
 }
@@ -995,16 +1012,137 @@ function handlePaste(event) {
   renderComposerState();
 }
 
+async function shareCard(card) {
+  const { syncBaseUrl } = state.settings;
+  if (!syncBaseUrl) throw new Error("sync not configured");
+
+  const appUrl = location.origin + location.pathname;
+  const response = await fetch(`${syncBaseUrl}/api/shares`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ card, appUrl })
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const shareUrl = data.shareUrl;
+  if (!shareUrl) throw new Error("no share URL returned");
+
+  if (navigator.share) {
+    const title = card.type === "vocab" ? card.word : (card.source?.title || "commonplace");
+    await navigator.share({ title, url: shareUrl });
+  } else {
+    await navigator.clipboard?.writeText(shareUrl);
+    toast("link copied");
+  }
+}
+
+async function loadSharedCard(code) {
+  const { syncBaseUrl } = state.settings;
+  if (!syncBaseUrl) return;
+  try {
+    const response = await fetch(`${syncBaseUrl}/api/shares/${encodeURIComponent(code)}`);
+    if (!response.ok) throw new Error("share not found");
+    const data = await response.json();
+    showSharedCardView(data.share.card);
+  } catch (err) {
+    toast(err.message || "could not load shared card");
+  }
+}
+
+function showSharedCardView(card) {
+  const overlay = document.createElement("div");
+  overlay.className = "shared-card-overlay";
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+
+  const modal = document.createElement("div");
+  modal.className = "shared-card-modal";
+
+  const header = document.createElement("div");
+  header.className = "shared-card-header";
+  const label = document.createElement("span");
+  label.className = "shared-card-label";
+  label.textContent = "shared card";
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "btn-link";
+  closeBtn.textContent = "close";
+  closeBtn.addEventListener("click", () => overlay.remove());
+  header.append(label, closeBtn);
+
+  const body = document.createElement("div");
+  body.className = "card-body";
+
+  if (card.type === "vocab") {
+    const head = document.createElement("div");
+    head.className = "card-vocab-head";
+    const wordEl = document.createElement("span");
+    wordEl.className = "card-vocab-word";
+    wordEl.textContent = card.word;
+    head.appendChild(wordEl);
+    if (card.phonetic) {
+      const phonEl = document.createElement("span");
+      phonEl.className = "card-vocab-phonetic";
+      phonEl.textContent = card.phonetic;
+      head.appendChild(phonEl);
+    }
+    body.appendChild(head);
+    if (card.partOfSpeech) {
+      const posEl = document.createElement("p");
+      posEl.className = "card-vocab-pos";
+      posEl.textContent = card.partOfSpeech;
+      body.appendChild(posEl);
+    }
+    const defEl = document.createElement("p");
+    defEl.className = "card-vocab-definition";
+    defEl.textContent = card.definition;
+    body.appendChild(defEl);
+  } else {
+    renderCardContent(body, card.content);
+    const { title: srcTitle, page: srcPage, url: srcUrl } = card.source || {};
+    const sourceLabel = srcTitle ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle) : "";
+    if (sourceLabel) {
+      const sourceEl = document.createElement("p");
+      sourceEl.className = "card-source";
+      if (srcUrl) {
+        const link = document.createElement("a");
+        link.href = srcUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = sourceLabel;
+        sourceEl.appendChild(link);
+      } else {
+        sourceEl.textContent = sourceLabel;
+      }
+      body.appendChild(sourceEl);
+    }
+  }
+
+  modal.append(header, body);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 function init() {
   attachEvents();
   autoResize();
   render();
 
-  const linkParam = normalizeCode(new URLSearchParams(location.search).get("link") || "");
+  const params = new URLSearchParams(location.search);
+  const linkParam = normalizeCode(params.get("link") || "");
   if (linkParam && linkParam !== state.sync.code) {
     state.sync.code = linkParam;
     saveAppState({ cards: state.cards, deviceId: state.deviceId, clock: state.clock, sync: state.sync });
     history.replaceState(null, "", location.pathname);
+  }
+
+  const shareParam = normalizeCode(params.get("share") || "");
+  if (shareParam) {
+    history.replaceState(null, "", location.pathname);
+    loadSharedCard(shareParam);
   }
 
   syncClient.start(state.sync.code);
