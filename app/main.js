@@ -44,7 +44,6 @@ let toastTimer;
 let parsedSourceCache = null;
 let expandedArticle = null;
 let pendingExpandCardId = null;
-const cardConversations = new Map();
 
 const syncClient = new CommonplaceSync({
   settings: state.settings,
@@ -151,9 +150,8 @@ function cardMatchesQuery(card, query) {
     }
   }
 
-  const convo = cardConversations.get(card.id);
-  if (convo) {
-    for (const msg of convo.messages) {
+  if (card.conversations) {
+    for (const msg of card.conversations) {
       if (msg.question.toLowerCase().includes(q)) return true;
       if (msg.answer.toLowerCase().includes(q)) return true;
     }
@@ -296,9 +294,8 @@ function expandCard(article, card) {
 
   const thread = document.createElement("div");
   thread.className = "conversation-thread";
-  const prior = cardConversations.get(card.id);
-  if (prior?.messages.length) {
-    for (const msg of prior.messages) {
+  if (card.conversations?.length) {
+    for (const msg of card.conversations) {
       appendThreadMessage(thread, msg.question, msg.answer, false);
     }
   }
@@ -554,7 +551,7 @@ function buildQuestionInput(card, thread, close) {
     convoInput.value = "";
     convoInput.disabled = true;
 
-    const history = cardConversations.get(card.id)?.messages || [];
+    const history = card.conversations || [];
     inputRow.remove();
     const qEl = appendThreadMessage(thread, question, null, true);
     thread.appendChild(inputRow);
@@ -564,8 +561,12 @@ function buildQuestionInput(card, thread, close) {
       const answer = await askStudyPartner(card, question, history);
       qEl.nextElementSibling.textContent = answer;
       qEl.nextElementSibling.classList.remove("loading");
-      if (!cardConversations.has(card.id)) cardConversations.set(card.id, { messages: [] });
-      cardConversations.get(card.id).messages.push({ question, answer });
+      const idx = state.cards.findIndex((c) => c.id === card.id);
+      if (idx !== -1) {
+        state.cards[idx].conversations = [...(state.cards[idx].conversations || []), { question, answer }];
+        card.conversations = state.cards[idx].conversations;
+      }
+      persist(true);
     } catch (err) {
       qEl.nextElementSibling.textContent = err.message || "Something went wrong.";
       qEl.nextElementSibling.classList.remove("loading");
@@ -1028,11 +1029,10 @@ async function shareCard(card) {
   if (!syncBaseUrl) throw new Error("sync not configured");
 
   const appUrl = location.origin + location.pathname;
-  const conversations = cardConversations.get(card.id)?.messages || [];
   const response = await fetch(`${syncBaseUrl}/api/shares`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ card: { ...card, conversations }, appUrl })
+    body: JSON.stringify({ card, appUrl })
   });
 
   if (!response.ok) {

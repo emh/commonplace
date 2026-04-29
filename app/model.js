@@ -48,6 +48,7 @@ export function hydrateCard(card, index = 0) {
       phonetic: String(raw.phonetic || "").trim(),
       definition: String(raw.definition || "").trim(),
       notes: hydrateNotes(raw.notes),
+      conversations: hydrateConversations(raw.conversations),
       createdAt
     };
   }
@@ -58,6 +59,7 @@ export function hydrateCard(card, index = 0) {
     content: String(raw.content || "").trim(),
     source: hydrateSource(raw.source),
     notes: hydrateNotes(raw.notes),
+    conversations: hydrateConversations(raw.conversations),
     createdAt
   };
 }
@@ -191,6 +193,17 @@ export function formatRelativeTime(dateValue) {
 
 export function formatCardCount(count) {
   return `${count} ${count === 1 ? "card" : "cards"}`;
+}
+
+function hydrateConversations(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((c) => c && typeof c === "object")
+    .map((c) => ({
+      question: String(c.question || "").trim(),
+      answer: String(c.answer || "").trim()
+    }))
+    .filter((c) => c.question && c.answer);
 }
 
 function hydrateNotes(value) {
