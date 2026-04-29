@@ -1,6 +1,7 @@
-import { hydrateCards } from "./model.js";
+import { hydrateCards, hydrateReceivedShares } from "./model.js";
 
 const STORAGE_KEY = "commonplace.app-state.v1";
+const RECEIVED_SHARES_KEY = "commonplace.received-shares.v1";
 const EMPTY_CLOCK = { wallTime: 0, counter: 0 };
 
 function fallbackState() {
@@ -55,6 +56,22 @@ export function saveAppState(appState) {
       sync: normalizeSyncState(appState.sync)
     })
   );
+}
+
+export function loadReceivedShares() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(RECEIVED_SHARES_KEY);
+    if (!raw) return [];
+    return hydrateReceivedShares(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+export function saveReceivedShares(shares) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(RECEIVED_SHARES_KEY, JSON.stringify(shares));
 }
 
 export function loadSettings() {

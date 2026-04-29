@@ -195,6 +195,18 @@ export function formatCardCount(count) {
   return `${count} ${count === 1 ? "card" : "cards"}`;
 }
 
+export function hydrateReceivedShares(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((s) => s && typeof s === "object" && s.code && s.card)
+    .map((s) => ({
+      code: String(s.code),
+      card: hydrateCard(s.card, 0),
+      receivedAt: normalizeDate(s.receivedAt)
+    }))
+    .filter((s) => s.card.type === "vocab" ? s.card.word : s.card.content);
+}
+
 function hydrateConversations(value) {
   if (!Array.isArray(value)) return [];
   return value

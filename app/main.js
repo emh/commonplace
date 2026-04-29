@@ -12,7 +12,8 @@ const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="1
 const ICON_PLUS = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>`;
 const ICON_QUESTION = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>`;
 const ICON_SHARE = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></svg>`;
-import { hydrateSnapshot, loadAppState, loadSettings, saveAppState } from "./storage.js";
+const ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+import { hydrateSnapshot, loadAppState, loadReceivedShares, loadSettings, saveAppState, saveReceivedShares } from "./storage.js";
 import { CommonplaceSync, buildDeviceLink, createLinkRoom, nextClock, normalizeCode, observeClock } from "./sync.js";
 
 const loadedState = loadAppState();
@@ -22,7 +23,8 @@ const state = {
   deviceId: loadedState.deviceId,
   clock: loadedState.clock,
   sync: loadedState.sync,
-  syncStatus: loadedState.sync.code ? "ready" : "local"
+  syncStatus: loadedState.sync.code ? "ready" : "local",
+  receivedShares: loadReceivedShares()
 };
 
 const $ = (id) => document.getElementById(id);
@@ -40,10 +42,14 @@ const statsEl = $("card-stats");
 const cardList = $("card-list");
 const toastEl = $("toast");
 
+const tabMine = $("tab-mine");
+const tabOthers = $("tab-others");
+
 let toastTimer;
 let parsedSourceCache = null;
 let expandedArticle = null;
 let pendingExpandCardId = null;
+let currentFeed = "mine";
 
 const syncClient = new CommonplaceSync({
   settings: state.settings,
@@ -159,8 +165,74 @@ function cardMatchesQuery(card, query) {
   return false;
 }
 
+function buildCardBody(card) {
+  const body = document.createElement("div");
+  body.className = "card-body";
+
+  if (card.type === "vocab") {
+    const head = document.createElement("div");
+    head.className = "card-vocab-head";
+
+    const wordEl = document.createElement("span");
+    wordEl.className = "card-vocab-word";
+    wordEl.textContent = card.word;
+    head.appendChild(wordEl);
+
+    if (card.phonetic) {
+      const phonEl = document.createElement("span");
+      phonEl.className = "card-vocab-phonetic";
+      phonEl.textContent = card.phonetic;
+      head.appendChild(phonEl);
+    }
+
+    body.appendChild(head);
+
+    if (card.partOfSpeech) {
+      const posEl = document.createElement("p");
+      posEl.className = "card-vocab-pos";
+      posEl.textContent = card.partOfSpeech;
+      body.appendChild(posEl);
+    }
+
+    const defEl = document.createElement("p");
+    defEl.className = "card-vocab-definition";
+    defEl.textContent = card.definition;
+    body.appendChild(defEl);
+  } else {
+    renderCardContent(body, card.content);
+
+    const { title: srcTitle, page: srcPage, url: srcUrl } = card.source || {};
+    const sourceLabel = srcTitle
+      ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle)
+      : "";
+    if (sourceLabel) {
+      const sourceEl = document.createElement("p");
+      sourceEl.className = "card-source";
+      if (srcUrl) {
+        const link = document.createElement("a");
+        link.href = srcUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = sourceLabel;
+        link.addEventListener("click", (e) => e.stopPropagation());
+        sourceEl.appendChild(link);
+      } else {
+        sourceEl.textContent = sourceLabel;
+      }
+      body.appendChild(sourceEl);
+    }
+  }
+
+  return body;
+}
+
 function renderCards() {
   cardList.innerHTML = "";
+
+  if (currentFeed === "others") {
+    renderReceivedCards();
+    return;
+  }
 
   const query = searchInput.value.trim();
   const visibleCards = query
@@ -192,69 +264,9 @@ function renderCards() {
 
     const meta = document.createElement("div");
     meta.className = "card-meta";
+    meta.append(Object.assign(document.createElement("span"), { textContent: formatCardTimestamp(card.createdAt) }));
 
-    const stamp = document.createElement("span");
-    stamp.textContent = formatCardTimestamp(card.createdAt);
-    meta.append(stamp);
-
-    const body = document.createElement("div");
-    body.className = "card-body";
-
-    if (card.type === "vocab") {
-      const head = document.createElement("div");
-      head.className = "card-vocab-head";
-
-      const wordEl = document.createElement("span");
-      wordEl.className = "card-vocab-word";
-      wordEl.textContent = card.word;
-      head.appendChild(wordEl);
-
-      if (card.phonetic) {
-        const phonEl = document.createElement("span");
-        phonEl.className = "card-vocab-phonetic";
-        phonEl.textContent = card.phonetic;
-        head.appendChild(phonEl);
-      }
-
-      body.appendChild(head);
-
-      if (card.partOfSpeech) {
-        const posEl = document.createElement("p");
-        posEl.className = "card-vocab-pos";
-        posEl.textContent = card.partOfSpeech;
-        body.appendChild(posEl);
-      }
-
-      const defEl = document.createElement("p");
-      defEl.className = "card-vocab-definition";
-      defEl.textContent = card.definition;
-      body.appendChild(defEl);
-    } else {
-      renderCardContent(body, card.content);
-
-      const { title: srcTitle, page: srcPage, url: srcUrl } = card.source || {};
-      const sourceLabel = srcTitle
-        ? (srcPage ? `${srcTitle}, p. ${srcPage}` : srcTitle)
-        : "";
-      if (sourceLabel) {
-        const sourceEl = document.createElement("p");
-        sourceEl.className = "card-source";
-        if (srcUrl) {
-          const link = document.createElement("a");
-          link.href = srcUrl;
-          link.target = "_blank";
-          link.rel = "noopener noreferrer";
-          link.textContent = sourceLabel;
-          link.addEventListener("click", (e) => e.stopPropagation());
-          sourceEl.appendChild(link);
-        } else {
-          sourceEl.textContent = sourceLabel;
-        }
-        body.appendChild(sourceEl);
-      }
-    }
-
-    article.append(meta, body);
+    article.append(meta, buildCardBody(card));
 
     article.addEventListener("click", (event) => {
       if (event.target.closest(".card-panel")) return;
@@ -280,6 +292,76 @@ function toggleCard(article, card) {
     if (expandedArticle) collapseCard(expandedArticle);
     expandCard(article, card);
   }
+}
+
+function renderReceivedCards() {
+  statsEl.textContent = "";
+
+  if (state.receivedShares.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "No shared cards yet. Open a share link and it will appear here.";
+    cardList.appendChild(empty);
+    return;
+  }
+
+  const sorted = [...state.receivedShares].sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+
+  sorted.forEach((share, index) => {
+    const { card } = share;
+    const article = document.createElement("article");
+    article.className = "card";
+    article.style.animationDelay = `${Math.min(index * 40, 160)}ms`;
+
+    const meta = document.createElement("div");
+    meta.className = "card-meta";
+    meta.append(Object.assign(document.createElement("span"), { textContent: formatCardTimestamp(share.receivedAt) }));
+
+    article.append(meta, buildCardBody(card));
+
+    article.addEventListener("click", (event) => {
+      if (event.target.closest(".card-panel")) return;
+      if (window.getSelection()?.toString()) return;
+      toggleReceivedCard(article, card);
+    });
+
+    cardList.appendChild(article);
+  });
+}
+
+function toggleReceivedCard(article, card) {
+  if (article.classList.contains("expanded")) {
+    collapseCard(article);
+  } else {
+    if (expandedArticle) collapseCard(expandedArticle);
+    expandReceivedCard(article, card);
+  }
+}
+
+function expandReceivedCard(article, card) {
+  expandedArticle = article;
+  article.classList.add("expanded");
+
+  const panel = document.createElement("div");
+  panel.className = "card-panel";
+
+  if (card.notes?.length) {
+    const notesEl = document.createElement("div");
+    notesEl.className = "card-notes";
+    renderCardNotes(notesEl, card);
+    panel.appendChild(notesEl);
+  }
+
+  if (card.conversations?.length) {
+    const thread = document.createElement("div");
+    thread.className = "conversation-thread";
+    for (const msg of card.conversations) {
+      appendThreadMessage(thread, msg.question, msg.answer, false);
+    }
+    panel.appendChild(thread);
+  }
+
+  article.appendChild(panel);
 }
 
 function expandCard(article, card) {
@@ -387,6 +469,20 @@ function buildActionBar(article, card, inline, thread) {
       }
     });
     actions.appendChild(shareBtn);
+
+    const copyBtn = makeActionBtn(ICON_COPY, "Copy share link");
+    copyBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      copyBtn.disabled = true;
+      try {
+        await copyCardShareUrl(card);
+      } catch (err) {
+        toast(err.message || "could not copy link");
+      } finally {
+        copyBtn.disabled = false;
+      }
+    });
+    actions.appendChild(copyBtn);
   }
 
   return actions;
@@ -1008,6 +1104,22 @@ function attachEvents() {
   });
 
   linkBtn?.addEventListener("click", toggleLinkPanel);
+
+  tabMine.addEventListener("click", () => {
+    currentFeed = "mine";
+    tabMine.classList.add("active");
+    tabOthers.classList.remove("active");
+    if (expandedArticle) collapseCard(expandedArticle);
+    renderCards();
+  });
+
+  tabOthers.addEventListener("click", () => {
+    currentFeed = "others";
+    tabOthers.classList.add("active");
+    tabMine.classList.remove("active");
+    if (expandedArticle) collapseCard(expandedArticle);
+    renderCards();
+  });
 }
 
 function handlePaste(event) {
@@ -1053,6 +1165,41 @@ async function shareCard(card) {
   }
 }
 
+async function copyCardShareUrl(card) {
+  const { syncBaseUrl } = state.settings;
+  if (!syncBaseUrl) throw new Error("sync not configured");
+
+  const appUrl = location.origin + location.pathname;
+
+  const fetchShareUrl = () => fetch(`${syncBaseUrl}/api/shares`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ card, appUrl })
+  }).then(async (res) => {
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      throw new Error(payload.error || `request failed: ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.shareUrl) throw new Error("no share URL returned");
+    return data.shareUrl;
+  });
+
+  if (typeof ClipboardItem !== "undefined") {
+    // Register copy intent synchronously during user gesture; resolve content async
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        "text/plain": fetchShareUrl().then((url) => new Blob([url], { type: "text/plain" }))
+      })
+    ]);
+  } else {
+    const url = await fetchShareUrl();
+    await navigator.clipboard.writeText(url);
+  }
+
+  toast("link copied");
+}
+
 async function loadSharedCard(code) {
   const { syncBaseUrl } = state.settings;
   if (!syncBaseUrl) return;
@@ -1060,7 +1207,14 @@ async function loadSharedCard(code) {
     const response = await fetch(`${syncBaseUrl}/api/shares/${encodeURIComponent(code)}`);
     if (!response.ok) throw new Error("share not found");
     const data = await response.json();
-    showSharedCardView(data.share.card);
+    const card = data.share.card;
+
+    if (!state.receivedShares.find((s) => s.code === code)) {
+      state.receivedShares = [{ code, card, receivedAt: new Date().toISOString() }, ...state.receivedShares];
+      saveReceivedShares(state.receivedShares);
+    }
+
+    showSharedCardView(card);
   } catch (err) {
     toast(err.message || "could not load shared card");
   }
