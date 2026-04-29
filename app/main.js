@@ -294,14 +294,6 @@ function expandCard(article, card) {
   const inline = document.createElement("div");
   inline.className = "card-inline";
 
-  panel.appendChild(buildActionBar(article, card, inline));
-  panel.appendChild(inline);
-
-  const notesEl = document.createElement("div");
-  notesEl.className = "card-notes";
-  renderCardNotes(notesEl, card);
-  panel.appendChild(notesEl);
-
   const thread = document.createElement("div");
   thread.className = "conversation-thread";
   const prior = cardConversations.get(card.id);
@@ -310,6 +302,15 @@ function expandCard(article, card) {
       appendThreadMessage(thread, msg.question, msg.answer, false);
     }
   }
+
+  panel.appendChild(buildActionBar(article, card, inline, thread));
+  panel.appendChild(inline);
+
+  const notesEl = document.createElement("div");
+  notesEl.className = "card-notes";
+  renderCardNotes(notesEl, card);
+  panel.appendChild(notesEl);
+
   panel.appendChild(thread);
 
   article.appendChild(panel);
@@ -322,12 +323,13 @@ function collapseCard(article) {
   if (expandedArticle === article) expandedArticle = null;
 }
 
-function buildActionBar(article, card, inline) {
+function buildActionBar(article, card, inline, thread) {
   const actions = document.createElement("div");
   actions.className = "card-actions";
 
   function clearInline() {
     inline.innerHTML = "";
+    thread.querySelector(".conversation-input-row")?.remove();
     actions.querySelectorAll(".card-action-btn").forEach((b) => b.classList.remove("active"));
   }
 
@@ -367,8 +369,10 @@ function buildActionBar(article, card, inline) {
   const askBtn = makeActionBtn(ICON_QUESTION, "Ask question");
   askBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const thread = article.querySelector(".conversation-thread");
-    togglePanel(askBtn, (container, close) => buildQuestionInput(container, card, thread, close));
+    if (askBtn.classList.contains("active")) { clearInline(); return; }
+    clearInline();
+    askBtn.classList.add("active");
+    buildQuestionInput(card, thread, clearInline);
   });
   actions.appendChild(askBtn);
 
@@ -530,7 +534,7 @@ function buildAddNoteForm(container, card, notesEl, close) {
   container.appendChild(el);
 }
 
-function buildQuestionInput(container, card, thread, close) {
+function buildQuestionInput(card, thread, close) {
   const inputRow = document.createElement("div");
   inputRow.className = "conversation-input-row";
 
@@ -541,7 +545,7 @@ function buildQuestionInput(container, card, thread, close) {
   convoInput.autocomplete = "off";
 
   convoInput.addEventListener("keydown", async (event) => {
-    if (event.key === "Escape") { close(); return; }
+    if (event.key === "Escape") { inputRow.remove(); close(); return; }
     if (event.key !== "Enter") return;
 
     const question = convoInput.value.trim();
@@ -551,7 +555,9 @@ function buildQuestionInput(container, card, thread, close) {
     convoInput.disabled = true;
 
     const history = cardConversations.get(card.id)?.messages || [];
+    inputRow.remove();
     const qEl = appendThreadMessage(thread, question, null, true);
+    thread.appendChild(inputRow);
     qEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
     try {
@@ -567,11 +573,13 @@ function buildQuestionInput(container, card, thread, close) {
     } finally {
       convoInput.disabled = false;
       convoInput.focus();
+      inputRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   });
 
   inputRow.appendChild(convoInput);
-  container.appendChild(inputRow);
+  thread.appendChild(inputRow);
+  convoInput.focus();
 }
 
 function renderCardNotes(container, card) {
