@@ -978,7 +978,6 @@ body.shared-card-open {
 .shared-card-screen-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: calc(16px + var(--safe-top)) 24px 14px;
   border-bottom: 1px solid var(--rule);
   flex-shrink: 0;
@@ -988,13 +987,6 @@ body.shared-card-open {
   font-size: 11px;
 }
 
-.shared-card-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
 
 .shared-card-content {
   flex: 1;

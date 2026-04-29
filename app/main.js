@@ -1081,11 +1081,7 @@ function showSharedCardView(card) {
     document.body.classList.remove("shared-card-open");
   });
 
-  const headerLabel = document.createElement("span");
-  headerLabel.className = "shared-card-label";
-  headerLabel.textContent = "shared card";
-
-  header.append(backBtn, headerLabel);
+  header.append(backBtn);
 
   const content = document.createElement("div");
   content.className = "shared-card-content";

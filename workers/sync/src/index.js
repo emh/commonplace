@@ -378,45 +378,113 @@ function buildCardAppUrl(share, env, code) {
 }
 
 function cardSharePreviewHtml({ card, appUrl, previewUrl }) {
-  const isVocab = card.type === "vocab";
+  const isVocab = card.type === “vocab”;
   let title, description;
 
   if (isVocab) {
-    title = card.word ? `${card.word} — commonplace` : "commonplace";
-    description = card.definition || "";
+    title = card.word ? `${card.word} — commonplace` : “commonplace”;
+    description = card.definition || “”;
   } else {
-    const src = card.source?.title ? ` — ${card.source.title}` : "";
-    const preview = String(card.content || "").slice(0, 100);
-    const ellipsis = card.content.length > 100 ? "…" : "";
-    title = preview ? `“${preview}${ellipsis}”${src}` : "commonplace";
-    description = String(card.content || "").slice(0, 240);
+    const src = card.source?.title ? ` — ${card.source.title}` : “”;
+    const preview = String(card.content || “”).slice(0, 100);
+    const ellipsis = card.content.length > 100 ? “…” : “”;
+    title = preview ? `”${preview}${ellipsis}”${src}` : “commonplace”;
+    description = String(card.content || “”).slice(0, 240);
   }
 
-  const redirectScript = appUrl ? `<script>location.replace(${safeJsonForScript(appUrl)});</script>` : "";
-  const redirectMeta = appUrl ? `<meta http-equiv="refresh" content="0; url=${escapeHtml(appUrl)}">` : "";
-  const canonical = appUrl ? `<link rel="canonical" href="${escapeHtml(appUrl)}">` : "";
-  const openLink = appUrl ? `<p><a href="${escapeHtml(appUrl)}">Open in commonplace</a></p>` : "";
+  const redirectScript = appUrl ? `<script>location.replace(${safeJsonForScript(appUrl)});</script>` : “”;
+  const backLink = appUrl ? `<a href=”${escapeHtml(appUrl)}” class=”back-btn”>← back</a>` : `<span></span>`;
+  const openBtn = appUrl ? `<a href=”${escapeHtml(appUrl)}” class=”open-btn”>open in commonplace</a>` : “”;
 
   return `<!doctype html>
-<html lang="en">
+<html lang=”en”>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset=”utf-8”>
+  <meta name=”viewport” content=”width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover”>
+  <meta name=”apple-mobile-web-app-capable” content=”yes”>
+  <meta name=”mobile-web-app-capable” content=”yes”>
   <title>${escapeHtml(title)}</title>
-  ${canonical}
-  ${redirectMeta}
-  <meta name="description" content="${escapeHtml(description)}">
-  <meta property="og:type" content="article">
-  <meta property="og:site_name" content="commonplace">
-  <meta property="og:title" content="${escapeHtml(title)}">
-  <meta property="og:description" content="${escapeHtml(description)}">
-  <meta property="og:url" content="${escapeHtml(previewUrl)}">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="${escapeHtml(title)}">
-  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name=”description” content=”${escapeHtml(description)}”>
+  <meta property=”og:type” content=”article”>
+  <meta property=”og:site_name” content=”commonplace”>
+  <meta property=”og:title” content=”${escapeHtml(title)}”>
+  <meta property=”og:description” content=”${escapeHtml(description)}”>
+  <meta property=”og:url” content=”${escapeHtml(previewUrl)}”>
+  <meta name=”twitter:card” content=”summary”>
+  <meta name=”twitter:title” content=”${escapeHtml(title)}”>
+  <meta name=”twitter:description” content=”${escapeHtml(description)}”>
+  <link rel=”preconnect” href=”https://fonts.googleapis.com”>
+  <link rel=”preconnect” href=”https://fonts.gstatic.com” crossorigin>
+  <link href=”https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap” rel=”stylesheet”>
+  <style>
+    :root {
+      --paper: #fffdf7;
+      --paper-shade: #f7f1e4;
+      --ink: #151311;
+      --ink-light: #8b8478;
+      --ink-faint: #cfc5b7;
+      --rule: rgba(33, 22, 10, 0.12);
+      --red: #8f1d12;
+      --font-serif: “Crimson Pro”, “Iowan Old Style”, “Palatino Linotype”, Palatino, Georgia, serif;
+      --font-mono: “SF Mono”, “Menlo”, “Consolas”, monospace;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      overflow-x: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(143, 29, 18, 0.06), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(62, 96, 124, 0.05), transparent 32%),
+        linear-gradient(180deg, #fffefb 0%, var(--paper) 55%, var(--paper-shade) 100%);
+      font-family: var(--font-serif);
+      display: flex;
+      flex-direction: column;
+    }
+    .share-header {
+      display: flex;
+      align-items: center;
+      padding: calc(16px + var(--safe-top)) 24px 14px;
+      border-bottom: 1px solid var(--rule);
+      flex-shrink: 0;
+    }
+    .back-btn {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+      text-decoration: none;
+    }
+    .back-btn:hover { color: var(--ink); }
+    .share-main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 24px calc(40px + var(--safe-bottom));
+    }
+    .open-btn {
+      font-family: var(--font-serif);
+      font-size: 20px;
+      font-style: italic;
+      color: var(--red);
+      text-decoration: none;
+    }
+    .open-btn:hover { color: #aa3522; }
+  </style>
 </head>
 <body>
-  ${openLink}
+  <header class=”share-header”>
+    ${backLink}
+  </header>
+  <main class=”share-main”>
+    ${openBtn}
+  </main>
   ${redirectScript}
 </body>
 </html>`;
