@@ -870,7 +870,7 @@ textarea {
   max-width: min(90vw, 360px);
   padding: 10px 16px;
   border: 1px solid var(--rule);
-  background: rgba(255, 253, 247, 0.96);
+  background: var(--paper);
   box-shadow: var(--shadow);
   color: var(--ink-mid);
   font-family: var(--font-mono);
@@ -880,7 +880,7 @@ textarea {
   text-transform: uppercase;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 160ms var(--ease), transform 160ms var(--ease);
+  z-index: 10;
 }
 
 .toast.visible {

@@ -378,44 +378,44 @@ function buildCardAppUrl(share, env, code) {
 }
 
 function cardSharePreviewHtml({ card, appUrl, previewUrl }) {
-  const isVocab = card.type === “vocab”;
+  const isVocab = card.type === "vocab";
   let title, description;
 
   if (isVocab) {
-    title = card.word ? `${card.word} — commonplace` : “commonplace”;
-    description = card.definition || “”;
+    title = card.word ? `${card.word} — commonplace` : "commonplace";
+    description = card.definition || "";
   } else {
-    const src = card.source?.title ? ` — ${card.source.title}` : “”;
-    const preview = String(card.content || “”).slice(0, 100);
-    const ellipsis = card.content.length > 100 ? “…” : “”;
-    title = preview ? `”${preview}${ellipsis}”${src}` : “commonplace”;
-    description = String(card.content || “”).slice(0, 240);
+    const src = card.source?.title ? ` — ${card.source.title}` : "";
+    const preview = String(card.content || "").slice(0, 100);
+    const ellipsis = card.content.length > 100 ? "…" : "";
+    title = preview ? `"${preview}${ellipsis}"${src}` : "commonplace";
+    description = String(card.content || "").slice(0, 240);
   }
 
-  const redirectScript = appUrl ? `<script>location.replace(${safeJsonForScript(appUrl)});</script>` : “”;
-  const backLink = appUrl ? `<a href=”${escapeHtml(appUrl)}” class=”back-btn”>← back</a>` : `<span></span>`;
-  const openBtn = appUrl ? `<a href=”${escapeHtml(appUrl)}” class=”open-btn”>open in commonplace</a>` : “”;
+  const redirectScript = appUrl ? `<script>location.replace(${safeJsonForScript(appUrl)});</script>` : "";
+  const backLink = appUrl ? `<a href="${escapeHtml(appUrl)}" class="back-btn">← back</a>` : `<span></span>`;
+  const openBtn = appUrl ? `<a href="${escapeHtml(appUrl)}" class="open-btn">open in commonplace</a>` : "";
 
   return `<!doctype html>
-<html lang=”en”>
+<html lang="en">
 <head>
-  <meta charset=”utf-8”>
-  <meta name=”viewport” content=”width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover”>
-  <meta name=”apple-mobile-web-app-capable” content=”yes”>
-  <meta name=”mobile-web-app-capable” content=”yes”>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>${escapeHtml(title)}</title>
-  <meta name=”description” content=”${escapeHtml(description)}”>
-  <meta property=”og:type” content=”article”>
-  <meta property=”og:site_name” content=”commonplace”>
-  <meta property=”og:title” content=”${escapeHtml(title)}”>
-  <meta property=”og:description” content=”${escapeHtml(description)}”>
-  <meta property=”og:url” content=”${escapeHtml(previewUrl)}”>
-  <meta name=”twitter:card” content=”summary”>
-  <meta name=”twitter:title” content=”${escapeHtml(title)}”>
-  <meta name=”twitter:description” content=”${escapeHtml(description)}”>
-  <link rel=”preconnect” href=”https://fonts.googleapis.com”>
-  <link rel=”preconnect” href=”https://fonts.gstatic.com” crossorigin>
-  <link href=”https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap” rel=”stylesheet”>
+  <meta name="description" content="${escapeHtml(description)}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="commonplace">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:url" content="${escapeHtml(previewUrl)}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
   <style>
     :root {
       --paper: #fffdf7;
@@ -425,8 +425,8 @@ function cardSharePreviewHtml({ card, appUrl, previewUrl }) {
       --ink-faint: #cfc5b7;
       --rule: rgba(33, 22, 10, 0.12);
       --red: #8f1d12;
-      --font-serif: “Crimson Pro”, “Iowan Old Style”, “Palatino Linotype”, Palatino, Georgia, serif;
-      --font-mono: “SF Mono”, “Menlo”, “Consolas”, monospace;
+      --font-serif: "Crimson Pro", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --font-mono: "SF Mono", "Menlo", "Consolas", monospace;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bottom: env(safe-area-inset-bottom, 0px);
     }
@@ -479,10 +479,10 @@ function cardSharePreviewHtml({ card, appUrl, previewUrl }) {
   </style>
 </head>
 <body>
-  <header class=”share-header”>
+  <header class="share-header">
     ${backLink}
   </header>
-  <main class=”share-main”>
+  <main class="share-main">
     ${openBtn}
   </main>
   ${redirectScript}

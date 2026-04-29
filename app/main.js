@@ -1170,31 +1170,39 @@ async function copyCardShareUrl(card) {
   if (!syncBaseUrl) throw new Error("sync not configured");
 
   const appUrl = location.origin + location.pathname;
+  const abort = new AbortController();
+  const timeout = setTimeout(() => abort.abort(), 8000);
+  let response;
+  try {
+    response = await fetch(`${syncBaseUrl}/api/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ card, appUrl }),
+      signal: abort.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
-  const fetchShareUrl = () => fetch(`${syncBaseUrl}/api/shares`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ card, appUrl })
-  }).then(async (res) => {
-    if (!res.ok) {
-      const payload = await res.json().catch(() => ({}));
-      throw new Error(payload.error || `request failed: ${res.status}`);
-    }
-    const data = await res.json();
-    if (!data.shareUrl) throw new Error("no share URL returned");
-    return data.shareUrl;
-  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || `request failed: ${response.status}`);
+  }
 
-  if (typeof ClipboardItem !== "undefined") {
-    // Register copy intent synchronously during user gesture; resolve content async
-    await navigator.clipboard.write([
-      new ClipboardItem({
-        "text/plain": fetchShareUrl().then((url) => new Blob([url], { type: "text/plain" }))
-      })
-    ]);
-  } else {
-    const url = await fetchShareUrl();
-    await navigator.clipboard.writeText(url);
+  const data = await response.json();
+  const shareUrl = data.shareUrl;
+  if (!shareUrl) throw new Error("no share URL returned");
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = shareUrl;
+    ta.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
   }
 
   toast("link copied");
